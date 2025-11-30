@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Árbol de Navidad 3D</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background: #000814;
+        }
+        canvas {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script>
+        let scene, camera, renderer, stars = [], snowflakes = [];
+
+        function init() {
+            // Escena
+            scene = new THREE.Scene();
+            
+            // Cámara
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.z = 15;
+            camera.position.y = 0;
+
+            // Renderer
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setClearColor(0x000814);
+            document.body.appendChild(renderer.domElement);
+
+            // Crear luna de fondo
+            createMoon();
+            
+            // Crear estrellas del árbol
+            createChristmasTree();
+            
+            // Crear nieve cayendo
+            createSnow();
+
+            // Luz ambiental
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
+            scene.add(ambientLight);
+
+            // Luz puntual
+            const pointLight = new THREE.PointLight(0xffffff, 1, 100);
+            pointLight.position.set(0, 0, 10);
+            scene.add(pointLight);
+
+            window.addEventListener('resize', onWindowResize);
+        }
+
+        function createStarTexture() {
+            const canvas = document.createElement('canvas');
+            canvas.width = 64;
+            canvas.height = 64;
+            const ctx = canvas.getContext('2d');
+            
+            // Dibujar forma de estrella
+            ctx.translate(32, 32);
+            ctx.fillStyle = 'rgba(255, 255, 255, 1)';
+            
+            // Dibujar estrella de 5 puntas
+            ctx.beginPath();
+            for (let i = 0; i < 5; i++) {
+                const angle = (i * 4 * Math.PI) / 5 - Math.PI / 2;
+                const x = Math.cos(angle) * 20;
+                const y = Math.sin(angle) * 20;
+                if (i === 0) ctx.moveTo(x, y);
+                else ctx.lineTo(x, y);
+            }
+            ctx.closePath();
+            ctx.fill();
+            
+            // Agregar brillo alrededor
+            ctx.shadowBlur = 15;
+            ctx.shadowColor = 'rgba(100, 200, 255, 0.8)';
+            ctx.fill();
+            
+            return new THREE.CanvasTexture(canvas);
+        }
+
+        function createMoon() {
+            // Crear textura de luna
+            const moonCanvas = document.createElement('canvas');
+            moonCanvas.width = 256;
+            moonCanvas.height = 256;
+            const moonCtx = moonCanvas.getContext('2d');
+            
+            // Luna con gradiente
+            const moonGradient = moonCtx.createRadialGradient(128, 128, 50, 128, 128, 128);
+            moonGradient.addColorStop(0, 'rgba(255, 255, 220, 1)');
+            moonGradient.addColorStop(0.7, 'rgba(255, 255, 200, 0.8)');
+            moonGradient.addColorStop(1, 'rgba(255, 255, 150, 0)');
+            
+            moonCtx.fillStyle = moonGradient;
+            moonCtx.beginPath();
+            moonCtx.arc(128, 128, 128, 0, Math.PI * 2);
+            moonCtx.fill();
+            
+            // Añadir algunos cráteres
+            moonCtx.fillStyle = 'rgba(200, 200, 180, 0.3)';
+            moonCtx.beginPath();
+            moonCtx.arc(100, 100, 15, 0, Math.PI * 2);
+            moonCtx.fill();
+            moonCtx.beginPath();
+            moonCtx.arc(150, 130, 10, 0, Math.PI * 2);
+            moonCtx.fill();
+            moonCtx.beginPath();
+            moonCtx.arc(130, 150, 8, 0, Math.PI * 2);
+            moonCtx.fill();
+            
+            const moonTexture = new THREE.CanvasTexture(moonCanvas);
+            
+            const moonMaterial = new THREE.SpriteMaterial({
+                map: moonTexture,
+                transparent: true,
+                opacity: 0.9,
+                blending: THREE.AdditiveBlending
+            });
+            
+            const moon = new THREE.Sprite(moonMaterial);
+            moon.position.set(8, 5, -10);
+            moon.scale.set(3, 3, 1);
+            
+            scene.add(moon);
+        }
+
+        function createChristmasTree() {
+            const texture = createStarTexture();
+            const layers = 15;
+            const starsPerLayer = 12;
+
+            for (let layer = 0; layer < layers; layer++) {
+                const y = 6 - (layer * 0.8);
+                const radius = 0.3 + (layer * 0.35);
+                
+                const starsInThisLayer = Math.floor(starsPerLayer * (1 + layer * 0.15));
+
+                for (let i = 0; i < starsInThisLayer; i++) {
+                    const angle = (Math.PI * 2 * i) / starsInThisLayer;
+                    
+                    const x = Math.cos(angle) * radius;
+                    const z = Math.sin(angle) * radius;
+
+                    // Crear sprite para estrella
+                    const starMaterial = new THREE.SpriteMaterial({
+                        map: texture,
+                        color: 0xffffff,
+                        transparent: true,
+                        blending: THREE.AdditiveBlending,
+                        opacity: 0.9
+                    });
+
+                    const star = new THREE.Sprite(starMaterial);
+                    star.position.set(x, y, z);
+                    star.scale.set(0.3, 0.3, 1);
+
+                    // Agregar brillo adicional
+                    const glowMaterial = new THREE.SpriteMaterial({
+                        map: texture,
+                        color: 0x4df3ff,
+                        transparent: true,
+                        blending: THREE.AdditiveBlending,
+                        opacity: 0.4
+                    });
+                    const glow = new THREE.Sprite(glowMaterial);
+                    glow.scale.set(0.6, 0.6, 1);
+                    star.add(glow);
+
+                    scene.add(star);
+                    stars.push({
+                        sprite: star,
+                        glow: glow,
+                        baseOpacity: 0.9,
+                        glowOpacity: 0.4,
+                        twinkleSpeed: Math.random() * 0.05 + 0.02
+                    });
+                }
+            }
+
+            // Estrella en la punta más grande y brillante con forma de estrella
+            const topCanvas = document.createElement('canvas');
+            topCanvas.width = 128;
+            topCanvas.height = 128;
+            const topCtx = topCanvas.getContext('2d');
+            
+            // Dibujar estrella grande en la punta
+            topCtx.translate(64, 64);
+            topCtx.fillStyle = 'rgba(255, 255, 100, 1)';
+            
+            // Dibujar estrella de 5 puntas
+            topCtx.beginPath();
+            for (let i = 0; i < 5; i++) {
+                const angle = (i * 4 * Math.PI) / 5 - Math.PI / 2;
+                const x = Math.cos(angle) * 40;
+                const y = Math.sin(angle) * 40;
+                if (i === 0) topCtx.moveTo(x, y);
+                else topCtx.lineTo(x, y);
+            }
+            topCtx.closePath();
+            topCtx.shadowBlur = 30;
+            topCtx.shadowColor = 'rgba(255, 200, 0, 1)';
+            topCtx.fill();
+            
+            const topTexture = new THREE.CanvasTexture(topCanvas);
+            
+            const topStarMaterial = new THREE.SpriteMaterial({
+                map: topTexture,
+                color: 0xffff00,
+                transparent: true,
+                blending: THREE.AdditiveBlending,
+                opacity: 1
+            });
+            
+            const topStar = new THREE.Sprite(topStarMaterial);
+            topStar.position.set(0, 6.5, 0);
+            topStar.scale.set(0.6, 0.6, 1);
+            
+            const topGlowMaterial = new THREE.SpriteMaterial({
+                map: topTexture,
+                color: 0xffaa00,
+                transparent: true,
+                blending: THREE.AdditiveBlending,
+                opacity: 0.5
+            });
+            const topGlow = new THREE.Sprite(topGlowMaterial);
+            topGlow.scale.set(1.5, 1.5, 1);
+            topStar.add(topGlow);
+
+            scene.add(topStar);
+            stars.push({
+                sprite: topStar,
+                glow: topGlow,
+                baseOpacity: 1,
+                glowOpacity: 0.5,
+                twinkleSpeed: 0.03
+            });
+        }
+
+        function createSnow() {
+            const snowGeometry = new THREE.BufferGeometry();
+            const snowCount = 500;
+            const positions = new Float32Array(snowCount * 3);
+            
+            for (let i = 0; i < snowCount; i++) {
+                positions[i * 3] = (Math.random() - 0.5) * 30;
+                positions[i * 3 + 1] = Math.random() * 20 - 5;
+                positions[i * 3 + 2] = (Math.random() - 0.5) * 30;
+            }
+            
+            snowGeometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+            
+            const snowMaterial = new THREE.PointsMaterial({
+                color: 0xffffff,
+                size: 0.1,
+                transparent: true,
+                opacity: 0.8,
+                blending: THREE.AdditiveBlending
+            });
+            
+            const snow = new THREE.Points(snowGeometry, snowMaterial);
+            scene.add(snow);
+            snowflakes.push(snow);
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+
+            // Rotar el árbol completo de lado (eje Y) más lento
+            scene.rotation.y += 0.002;
+
+            // Efecto de parpadeo en las estrellas
+            stars.forEach((starObj, index) => {
+                const time = Date.now() * starObj.twinkleSpeed;
+                const twinkle = Math.sin(time + index) * 0.3 + 0.7;
+                
+                starObj.sprite.material.opacity = starObj.baseOpacity * twinkle;
+                starObj.glow.material.opacity = starObj.glowOpacity * twinkle;
+                
+                // Escala del brillo
+                const scale = 1 + Math.sin(time + index) * 0.3;
+                starObj.glow.scale.set(scale, scale, 1);
+            });
+
+            // Animar nieve cayendo más lento
+            snowflakes.forEach(snow => {
+                const positions = snow.geometry.attributes.position.array;
+                for (let i = 0; i < positions.length; i += 3) {
+                    positions[i + 1] -= 0.01; // Caer hacia abajo más lento
+                    
+                    // Movimiento lateral suave
+                    positions[i] += Math.sin(Date.now() * 0.0005 + i) * 0.005;
+                    
+                    // Reset cuando llega abajo
+                    if (positions[i + 1] < -10) {
+                        positions[i + 1] = 10;
+                        positions[i] = (Math.random() - 0.5) * 30;
+                        positions[i + 2] = (Math.random() - 0.5) * 30;
+                    }
+                }
+                snow.geometry.attributes.position.needsUpdate = true;
+            });
+
+            renderer.render(scene, camera);
+        }
+
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        init();
+        animate();
+    </script>
+</body>
+</html>
